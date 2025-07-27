@@ -226,3 +226,62 @@ function calculateAsianStats(filtered) {
   document.getElementById("asian-stats").innerText =
     `主贏盤 ${win} 場 (${winPct}%)　主輸盤 ${lose} 場 (${losePct}%)　走水 ${draw} 場 (${drawPct}%)`;
 }
+
+
+function searchEurope() {
+  fetch("euro_odds_with_timestamp.json")
+    .then((response) => response.json())
+    .then((data) => {
+      const form = document.getElementById("europe-form");
+      const cond = {};
+      new FormData(form).forEach((v, k) => cond[k] = v ? parseFloat(v) : null);
+
+      const filtered = data.filter(row => {
+        const chk = (v, min, max) => (min == null || v >= min) && (max == null || v <= max);
+        return chk(row.home_open, cond.home_open_min, cond.home_open_max)
+            && chk(row.draw_open, cond.draw_open_min, cond.draw_open_max)
+            && chk(row.away_open, cond.away_open_min, cond.away_open_max)
+            && chk(row.home_close, cond.home_close_min, cond.home_close_max)
+            && chk(row.draw_close, cond.draw_close_min, cond.draw_close_max)
+            && chk(row.away_close, cond.away_close_min, cond.away_close_max);
+      });
+
+      let win1 = 0, draw = 0, win2 = 0;
+      let score_dist = { "+1": 0, "+2": 0, "+3+": 0, "-1": 0, "-2": 0, "-3+": 0 };
+      filtered.forEach(row => {
+        if (row.ft_result === "H") win1++;
+        else if (row.ft_result === "D") draw++;
+        else if (row.ft_result === "A") win2++;
+
+        const diff = row.home_score - row.away_score;
+        if (diff > 0) {
+          if (diff === 1) score_dist["+1"]++;
+          else if (diff === 2) score_dist["+2"]++;
+          else score_dist["+3+"]++;
+        } else if (diff < 0) {
+          if (diff === -1) score_dist["-1"]++;
+          else if (diff === -2) score_dist["-2"]++;
+          else score_dist["-3+"]++;
+        }
+      });
+
+      const total = filtered.length;
+      const percent = (v) => total ? ((v / total * 100).toFixed(2) + "%") : "0%";
+      let html = `<p>符合場數：${total}</p>`;
+      html += `<p>主勝：${win1} (${percent(win1)})，和局：${draw} (${percent(draw)})，客勝：${win2} (${percent(win2)})</p>`;
+      html += `<p>勝方淨勝球分布：</p><ul>
+        <li>主勝1球：${score_dist["+1"]} (${percent(score_dist["+1"])})</li>
+        <li>主勝2球：${score_dist["+2"]} (${percent(score_dist["+2"])})</li>
+        <li>主勝3球或以上：${score_dist["+3+"]} (${percent(score_dist["+3+"])} )</li>
+        <li>客勝1球：${score_dist["-1"]} (${percent(score_dist["-1"])})</li>
+        <li>客勝2球：${score_dist["-2"]} (${percent(score_dist["-2"])})</li>
+        <li>客勝3球或以上：${score_dist["-3+"]} (${percent(score_dist["-3+"])} )</li>
+      </ul>`;
+      document.getElementById("europe-result").innerHTML = html;
+    });
+}
+
+document.getElementById("europe-form").addEventListener("submit", function (e) {
+  e.preventDefault();
+  searchEurope();
+});
